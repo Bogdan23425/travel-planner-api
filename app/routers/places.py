@@ -10,6 +10,7 @@ from app.models import ProjectPlace
 from app.schemas.place import PlaceCreate
 from app.schemas.place import PlaceUpdate
 from app.schemas.place import PlaceResponse
+from app.services.art_api import ArtApiUnavailable
 from app.services.art_api import get_artwork
 
 router = APIRouter(
@@ -57,9 +58,16 @@ def create_place(
             detail="Place already exists in project",
         )
     
-    artwork = get_artwork(
-        payload.external_id
-    )
+    try:
+        artwork = get_artwork(
+            payload.external_id
+        )
+    except ArtApiUnavailable:
+        raise HTTPException(
+            status_code=503,
+            detail="Art Institute API is unavailable",
+        )
+
     if not artwork:
         raise HTTPException(
             status_code= 404,
@@ -73,6 +81,7 @@ def create_place(
     )
 
     db.add(place)
+    project.is_completed = False
     db.commit()
     db.refresh(place)
 
@@ -156,16 +165,18 @@ def update_place(
     db.commit()
     db.refresh(place)
 
+    project = db.get(Project, project_id)
+
     all_places = (
         db.query(ProjectPlace)
         .filter(ProjectPlace.project_id == project_id)
         .all()
     )
-
-    if all_places and all(p.visited for p in all_places):
-        project = db.get(Project, project_id)
-        if project:
-            project.is_completed = True
-            db.commit()
+    if project:
+        project.is_completed = (
+            len(all_places) > 0
+            and all(p.visited for p in all_places)
+        )
+        db.commit()
 
     return place

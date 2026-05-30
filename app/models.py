@@ -8,6 +8,7 @@ from sqlalchemy import ForeignKey
 from sqlalchemy import Integer
 from sqlalchemy import String
 from sqlalchemy import Text
+from sqlalchemy import UniqueConstraint
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
@@ -52,6 +53,14 @@ class Project(Base):
 
 class ProjectPlace(Base):
     __tablename__ = 'project_places'
+
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id",
+            "external_id",
+            name="uq_project_place",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(
         Integer,

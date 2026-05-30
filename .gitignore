@@ -1,16 +1,9 @@
-.venv/
-
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+.venv/
 
 travel.db
 
 .idea/
 .vscode/
-
 .DS_Store
-
-.env
-.env.*

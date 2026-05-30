@@ -11,6 +11,7 @@ from app.models import ProjectPlace
 from app.schemas.project import ProjectCreate
 from app.schemas.project import ProjectUpdate
 from app.schemas.project import ProjectResponse
+from app.services.art_api import ArtApiUnavailable
 from app.services.art_api import get_artwork
 
 router = APIRouter(
@@ -24,35 +25,69 @@ router = APIRouter(
     status_code= 201,
 )
 def create_project(
-    payload: ProjectCreate,
+    payload:ProjectCreate,
     db: Session = Depends(get_db),
 ):
-    project = Project(
-        name = payload.name,
-        description = payload.description,
-        start_date = payload.start_date,
-    )
+    external_ids = [
+        place.external_id
+        for place in payload.places
+    ]
 
-    db.add(project)
-    db.commit()
-    db.refresh(project)
+    if len(external_ids) != len(set(external_ids)):
+        raise HTTPException(
+            status_code= 400,
+            detail= "Duplicate places are not allowed",
+        )
+
+    validated_places = []
 
     for place_data in payload.places:
-        artwork = get_artwork(
-            place_data.external_id
-        )
-        if not artwork:
-            continue
-        place = ProjectPlace(
-            project_id=project.id,
-            external_id=place_data.external_id,
-            title=artwork["title"],
-            notes=place_data.notes, 
-        )
-        db.add(place)
+        try:
+            artwork = get_artwork(place_data.external_id)
+        except ArtApiUnavailable:
+            raise HTTPException(
+                status_code=503,
+                detail="Art Institute API is unavailable",
+            )
 
-    db.commit()
-    db.refresh(project)
+        if not artwork:
+            raise HTTPException(
+                status_code= 404,
+                detail= f"Artwork {place_data.external_id} not found",
+            )
+
+        validated_places.append(
+            {
+                "external_id": place_data.external_id,
+                "title": artwork.get("title", "Unknown Artwork"),
+                "notes": place_data.notes,
+            }
+        )
+
+    project = Project(
+        name=payload.name,
+        description=payload.description,
+        start_date=payload.start_date,
+    )
+
+    try:
+        db.add(project)
+        db.flush()
+
+        for place_data in validated_places:
+            place = ProjectPlace(
+                project_id=project.id,
+                external_id=place_data["external_id"],
+                title=place_data["title"],
+                notes=place_data["notes"],
+            )
+            db.add(place)
+
+        db.commit()
+        db.refresh(project)
+    except Exception:
+        db.rollback()
+        raise
 
     return project
 

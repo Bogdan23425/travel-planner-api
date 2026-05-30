@@ -3,10 +3,13 @@ from datetime import datetime
 from pydantic import BaseModel
 from pydantic import ConfigDict
 
+from app.schemas.place import PlaceCreate
+
 class ProjectCreate(BaseModel):
     name:str
     description:str | None = None
     start_date:date | None = None
+    places: list[PlaceCreate] = []
 
 class ProjectUpdate(BaseModel):
     name:str | None = None

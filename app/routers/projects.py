@@ -11,6 +11,7 @@ from app.models import ProjectPlace
 from app.schemas.project import ProjectCreate
 from app.schemas.project import ProjectUpdate
 from app.schemas.project import ProjectResponse
+from app.services.art_api import get_artwork
 
 router = APIRouter(
     prefix='/projects',
@@ -31,7 +32,25 @@ def create_project(
         description = payload.description,
         start_date = payload.start_date,
     )
+
     db.add(project)
+    db.commit()
+    db.refresh(project)
+
+    for place_data in payload.places:
+        artwork = get_artwork(
+            place_data.external_id
+        )
+        if not artwork:
+            continue
+        place = ProjectPlace(
+            project_id=project.id,
+            external_id=place_data.external_id,
+            title=artwork["title"],
+            notes=place_data.notes, 
+        )
+        db.add(place)
+
     db.commit()
     db.refresh(project)
 

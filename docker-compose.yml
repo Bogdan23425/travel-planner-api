@@ -1,0 +1,8 @@
+services:
+  api:
+    build: .
+    container_name: travel-planner-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./travel.db:/app/travel.db

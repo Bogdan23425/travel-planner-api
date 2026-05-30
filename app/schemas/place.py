@@ -5,7 +5,6 @@ from pydantic import ConfigDict
 
 class PlaceCreate(BaseModel):
     external_id:int
-    title: str
     notes:str | None = None
 
 

@@ -10,6 +10,7 @@ from app.models import ProjectPlace
 from app.schemas.place import PlaceCreate
 from app.schemas.place import PlaceUpdate
 from app.schemas.place import PlaceResponse
+from app.services.art_api import get_artwork
 
 router = APIRouter(
     prefix="/projects/{project_id}/places",
@@ -56,12 +57,21 @@ def create_place(
             detail="Place already exists in project",
         )
     
+    artwork = get_artwork(
+        payload.external_id
+    )
+    if not artwork:
+        raise HTTPException(
+            status_code= 404,
+            detail="Artwork not found",
+        )
     place = ProjectPlace(
         project_id= project.id,
-        external_id= payload.external_id,
-        title= payload.title,
-        notes= payload.notes,
+        external_id=payload.external_id,
+        title=artwork.get("title", "Unknown Artwork"),
+        notes=payload.notes,
     )
+
     db.add(place)
     db.commit()
     db.refresh(place)

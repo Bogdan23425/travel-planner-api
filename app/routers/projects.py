@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Project
+from app.models import ProjectPlace
 from app.schemas.project import ProjectCreate
 from app.schemas.project import ProjectUpdate
 from app.schemas.project import ProjectResponse
@@ -101,6 +102,20 @@ def delete_project(
         raise HTTPException(
             status_code= 404,
             detail= "Project not found",
+        )
+    visited_places = (
+        db.query(ProjectPlace)
+        .filter(
+            ProjectPlace.project_id == project_id,
+            ProjectPlace.visited == True,
+        )
+        .count()
+    )
+
+    if visited_places:
+        raise HTTPException(
+            status_code= 400,
+            detail="Cannot delete project with visited places",
         )
     db.delete(project)
     db.commit()

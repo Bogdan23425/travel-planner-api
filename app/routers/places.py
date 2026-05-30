@@ -32,6 +32,30 @@ def create_place(
             status_code= 404,
             detail= "Project not found",
         )
+    places_count = (
+        db.query(ProjectPlace)
+        .filter(ProjectPlace.project_id == project_id)
+        .count()
+    )
+    if places_count >= 10:
+        raise HTTPException(
+            status_code= 400,
+            detail="Project cannot contain more than 10 places",
+        )
+    existing_place = (
+        db.query(ProjectPlace)
+        .filter(
+            ProjectPlace.project_id == project_id,
+            ProjectPlace.external_id == payload.external_id,
+        )
+        .first()
+    )
+    if existing_place:
+        raise HTTPException(
+            status_code= 400,
+            detail="Place already exists in project",
+        )
+    
     place = ProjectPlace(
         project_id= project.id,
         external_id= payload.external_id,
@@ -121,5 +145,17 @@ def update_place(
 
     db.commit()
     db.refresh(place)
+
+    all_places = (
+        db.query(ProjectPlace)
+        .filter(ProjectPlace.project_id == project_id)
+        .all()
+    )
+
+    if all_places and all(p.visited for p in all_places):
+        project = db.get(Project, project_id)
+        if project:
+            project.is_completed = True
+            db.commit()
 
     return place
